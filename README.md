@@ -1,6 +1,6 @@
 # dat2vtk
 
-Convert Tecplot FEBLOCK (`*_nf.dat`) files to VTK (ASCII, Unstructured Grid).
+Convert Tecplot FEBLOCK (`*_nf.dat`) files to VTK (ASCII, Unstructured Grid). This script converts VFS-Geophysics Tecplot outputs so they can be visualized in ParaView.
 
 ## Requirements
 - Python 3.8+
