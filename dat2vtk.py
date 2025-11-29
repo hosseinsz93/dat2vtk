@@ -1,5 +1,7 @@
 import numpy as np
 import re
+import argparse
+import fnmatch
 import os
 import glob
 
@@ -199,21 +201,43 @@ def write_vtk_file(filename, data):
 
 def main():
     """Convert all .dat files to VTK"""
+    parser = argparse.ArgumentParser(description="Convert Tecplot FEBLOCK files to VTK")
+    parser.add_argument('-i', '--input-dir', default=None,
+                        help='Input directory to search for *.dat files (default: script location)')
+    parser.add_argument('-o', '--output-dir', default=None,
+                        help='Output directory for VTK files (default: <script>/vtk_output)')
+    parser.add_argument('-p', '--pattern', default='*_nf.dat',
+                        help='Filename pattern to match input files (fnmatch style), default is "*_nf.dat"')
+    args = parser.parse_args()
+
     # Get script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Create output directory
-    output_dir = os.path.join(script_dir, 'vtk_output')
+
+    # Resolve input directory
+    if args.input_dir:
+        input_dir = os.path.abspath(os.path.expanduser(args.input_dir))
+        if not os.path.exists(input_dir):
+            print(f"Input directory does not exist: {input_dir}")
+            return
+    else:
+        input_dir = os.path.abspath(os.path.join(script_dir, './../inputFiles/dat'))
+
+    # Resolve output directory
+    if args.output_dir:
+        output_dir = os.path.abspath(os.path.expanduser(args.output_dir))
+    else:
+        output_dir = os.path.join(script_dir, 'vtk_output')
+
     os.makedirs(output_dir, exist_ok=True)
-    
-    # Find all .dat files recursively
+
+    # Find files by pattern (fnmatch)
     dat_files = []
-    for root, dirs, files in os.walk(script_dir):
-        # Skip the output directory
-        if 'vtk_output' in root:
+    for root, dirs, files in os.walk(input_dir):
+        # Avoid walking into the output directory when it is inside the input directory
+        if os.path.abspath(root).startswith(os.path.abspath(output_dir)):
             continue
         for file in files:
-            if file.endswith('_nf.dat'):
+            if fnmatch.fnmatch(file, args.pattern):
                 dat_files.append(os.path.join(root, file))
     
     if not dat_files:
@@ -228,7 +252,13 @@ def main():
     
     for dat_file in sorted(dat_files):
         basename = os.path.basename(dat_file)
-        vtk_filename = basename.replace('_nf.dat', '_nf.vtk')
+        # Transform lineAAAAAA_BBB_nf.dat to lineBBB_AAAAAA.vtk
+        match = re.match(r'(.+?)(\d+)_(\d+)_nf\.dat$', basename)
+        if match:
+            prefix, part1, part2 = match.groups()
+            vtk_filename = f"{prefix}{part2}_{part1}.vtk"
+        else:
+            vtk_filename = basename.replace('_nf.dat', '.vtk')
         vtk_path = os.path.join(output_dir, vtk_filename)
         
         try:
